@@ -1,0 +1,52 @@
+'use strict';
+
+/**
+ * auth-service entry point.
+ *   npm start      production
+ *   npm run dev    with --watch reload
+ */
+
+const app = require('./src/app');
+const config = require('./src/config/env');
+const { pool, assertConnection } = require('./src/config/db');
+
+async function main() {
+  try {
+    await assertConnection();
+    console.log(`[auth-service] Database connection OK`);
+  } catch (err) {
+    console.error(`[auth-service] Cannot reach the database: ${err.message}`);
+    console.error('[auth-service] Check DATABASE_URL, and that schema.sql has been applied.');
+    process.exit(1);
+  }
+
+  const server = app.listen(config.port, () => {
+    console.log(`[auth-service] Listening on http://localhost:${config.port} (${config.env})`);
+    console.log(`[auth-service] Health: http://localhost:${config.port}/health`);
+  });
+
+  // Graceful shutdown: stop accepting connections, drain, then close the pool.
+  // Kubernetes sends SIGTERM, so honouring it avoids dropped requests on deploy.
+  const shutdown = (signal) => async () => {
+    console.log(`[auth-service] ${signal} received, shutting down...`);
+    server.close(async () => {
+      await pool.end();
+      console.log('[auth-service] Closed cleanly');
+      process.exit(0);
+    });
+    // Don't wait forever for stuck sockets.
+    setTimeout(() => {
+      console.error('[auth-service] Forced shutdown after 10s');
+      process.exit(1);
+    }, 10_000).unref();
+  };
+
+  process.on('SIGTERM', shutdown('SIGTERM'));
+  process.on('SIGINT', shutdown('SIGINT'));
+}
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[auth-service] Unhandled promise rejection:', reason);
+});
+
+main();

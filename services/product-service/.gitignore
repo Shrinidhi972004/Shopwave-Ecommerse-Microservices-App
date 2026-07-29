@@ -1,0 +1,17 @@
+node_modules
+
+# Environment — never commit real secrets (DB creds, JWT_SECRET)
+.env
+.env.local
+.env.*.local
+*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
