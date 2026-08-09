@@ -19,3 +19,5 @@ npm-debug.log*
 .idea/
 .vscode/
 *.swp
+
+k8s/02-secret.yaml
