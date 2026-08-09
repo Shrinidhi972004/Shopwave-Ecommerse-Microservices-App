@@ -1,0 +1,148 @@
+# ShopWave — backend orchestration only.
+#
+# The frontend is NOT in here on purpose — it runs on the host via
+# `npm run dev` / `npm run build`, exactly as before. Every service below
+# publishes its port to the host (`ports:`), so the frontend reaches them at
+# the same http://localhost:4001-4004 URLs it already uses.
+#
+# App service Dockerfiles already declare their own HEALTHCHECK (image-level,
+# using 127.0.0.1), so this file does not redefine one per service — Compose
+# picks up the image's healthcheck automatically, which is what makes
+# `depends_on: condition: service_healthy` work below without duplicating it.
+#
+# Two DIFFERENT .env files are in play, don't confuse them:
+#   1. This file's sibling `.env` (ecommerce-app/.env) — read by `docker
+#      compose` itself for ${VAR} substitution below. Never copied into a
+#      container. Create it from the template in the project README.
+#   2. Each service's own `.env` (services/*/.env) — read by `dotenv` INSIDE
+#      the container. Superseded here by the `environment:` blocks, which
+#      take priority over anything baked into the image.
+
+networks:
+  shopwave-net:
+    driver: bridge
+
+volumes:
+  pg-data:
+
+services:
+  # ── Data tier ──────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-shopwave}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shopwave_dev_pw}
+      POSTGRES_DB: ${POSTGRES_DB:-ecommerce}
+    ports:
+      - "5432:5432"          # host access for psql/GUI clients; drop for prod
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      # Official postgres image auto-runs anything in docker-entrypoint-initdb.d,
+      # in filename order, but ONLY the very first time the volume is empty.
+      # Numeric prefixes guarantee schema runs before seed regardless of the
+      # source filenames.
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shopwave} -d ${POSTGRES_DB:-ecommerce}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [shopwave-net]
+
+  # ── Application tier ────────────────────────────────────────────────────────
+  auth-service:
+    build: ./services/auth-service
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 4001
+      NODE_ENV: production
+      # Internal docker network — service name `db`, container port 5432.
+      # Not the same 5432 you'd use from the host; inside this network
+      # there's only one postgres, reachable by its service name.
+      DATABASE_URL: postgres://${POSTGRES_USER:-shopwave}:${POSTGRES_PASSWORD:-shopwave_dev_pw}@db:5432/${POSTGRES_DB:-ecommerce}
+      PGSSL: "false"
+      # Single source of truth — every backend service reads the SAME
+      # compose-level ${JWT_SECRET}, so they can never drift out of sync.
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: 2h
+      JWT_ISSUER: shopwave-auth
+      # The frontend runs on the host (npm run dev, :5173), not in this
+      # network — this must stay a host-facing origin.
+      CORS_ORIGINS: http://localhost:5173
+      BCRYPT_ROUNDS: 10
+    ports:
+      - "4001:4001"
+    networks: [shopwave-net]
+
+  product-service:
+    build: ./services/product-service
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 4002
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-shopwave}:${POSTGRES_PASSWORD:-shopwave_dev_pw}@db:5432/${POSTGRES_DB:-ecommerce}
+      PGSSL: "false"
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: shopwave-auth
+      CORS_ORIGINS: http://localhost:5173
+    ports:
+      - "4002:4002"
+    networks: [shopwave-net]
+
+  cart-service:
+    build: ./services/cart-service
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      product-service:
+        condition: service_healthy
+    environment:
+      PORT: 4003
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-shopwave}:${POSTGRES_PASSWORD:-shopwave_dev_pw}@db:5432/${POSTGRES_DB:-ecommerce}
+      PGSSL: "false"
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: shopwave-auth
+      CORS_ORIGINS: http://localhost:5173
+      # Service-to-service call — this correctly uses the internal docker DNS
+      # name, because it's cart-service's own Node process calling
+      # product-service directly, not a browser request.
+      PRODUCT_SERVICE_URL: http://product-service:4002
+      HTTP_TIMEOUT_MS: 5000
+    ports:
+      - "4003:4003"
+    networks: [shopwave-net]
+
+  order-service:
+    build: ./services/order-service
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      product-service:
+        condition: service_healthy
+      cart-service:
+        condition: service_healthy
+    environment:
+      PORT: 4004
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-shopwave}:${POSTGRES_PASSWORD:-shopwave_dev_pw}@db:5432/${POSTGRES_DB:-ecommerce}
+      PGSSL: "false"
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: shopwave-auth
+      CORS_ORIGINS: http://localhost:5173
+      PRODUCT_SERVICE_URL: http://product-service:4002
+      CART_SERVICE_URL: http://cart-service:4003
+      HTTP_TIMEOUT_MS: 5000
+    ports:
+      - "4004:4004"
+    networks: [shopwave-net]
