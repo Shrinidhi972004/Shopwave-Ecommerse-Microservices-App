@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shopwave-config
+  namespace: shopwave
+data:
+  NODE_ENV: "production"
+  PGSSL: "true"
+  JWT_ISSUER: "shopwave-auth"
+  CORS_ORIGINS: "cloudfront url"
+  
