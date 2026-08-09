@@ -4,19 +4,6 @@
 # `npm run dev` / `npm run build`, exactly as before. Every service below
 # publishes its port to the host (`ports:`), so the frontend reaches them at
 # the same http://localhost:4001-4004 URLs it already uses.
-#
-# App service Dockerfiles already declare their own HEALTHCHECK (image-level,
-# using 127.0.0.1), so this file does not redefine one per service — Compose
-# picks up the image's healthcheck automatically, which is what makes
-# `depends_on: condition: service_healthy` work below without duplicating it.
-#
-# Two DIFFERENT .env files are in play, don't confuse them:
-#   1. This file's sibling `.env` (ecommerce-app/.env) — read by `docker
-#      compose` itself for ${VAR} substitution below. Never copied into a
-#      container. Create it from the template in the project README.
-#   2. Each service's own `.env` (services/*/.env) — read by `dotenv` INSIDE
-#      the container. Superseded here by the `environment:` blocks, which
-#      take priority over anything baked into the image.
 
 networks:
   shopwave-net:
