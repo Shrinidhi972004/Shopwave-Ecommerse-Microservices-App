@@ -1,11 +1,11 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: auth-service    
+  name: auth-service
   namespace: shopwave
   labels:
-    app: auth-service 
-    app.kubernetes.io/name: shopwave
+    app: auth-service
+    app.kubernetes.io/part-of: shopwave
 spec:
   replicas: 2
   revisionHistoryLimit: 5
@@ -21,7 +21,7 @@ spec:
     metadata:
       labels:
         app: auth-service
-        app.kubernetes.io/name: shopwave
+        app.kubernetes.io/part-of: shopwave
     spec:
       terminationGracePeriodSeconds: 30
       securityContext:
