@@ -40,9 +40,9 @@ spec:
             - name: PORT
               value: "4004"
             - name: PRODUCT_SERVICE_URL
-              value: "http://product-service:4002"
+              value: "http://product-service"
             - name: CART_SERVICE_URL
-              value: "http://cart-service:4003"
+              value: "http://cart-service"
             - name: HTTP_TIMEOUT_MS
               value: "5000"
           envFrom:
