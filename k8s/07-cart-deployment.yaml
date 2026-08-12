@@ -40,7 +40,7 @@ spec:
             - name: PORT
               value: "4003"
             - name: PRODUCT_SERVICE_URL
-              value: "http://product-service:4002"
+              value: "http://product-service"
             - name: HTTP_TIMEOUT_MS
               value: "5000"
           envFrom:

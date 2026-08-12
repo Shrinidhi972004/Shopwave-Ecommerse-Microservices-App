@@ -522,7 +522,7 @@ npm run preview      # serve dist/ locally to check it
 
 | Variable | Default | Notes |
 |---|---|---|
-| `PRODUCT_SERVICE_URL` | `http://localhost:4002` | K8s: `http://product-service:4002` |
+| `PRODUCT_SERVICE_URL` | `http://localhost:4002` | K8s: `http://product-service` (Service port 80) |
 | `CART_SERVICE_URL` | `http://localhost:4003` | order-service only |
 | `HTTP_TIMEOUT_MS` | `5000` | Service-to-service call timeout |
 
@@ -534,7 +534,7 @@ npm run preview      # serve dist/ locally to check it
 | `VITE_PRODUCT_API_URL` | `http://localhost:4002` |
 | `VITE_CART_API_URL` | `http://localhost:4003` |
 | `VITE_ORDER_API_URL` | `http://localhost:4004` |
-| `VITE_API_GATEWAY_URL` | *(unset)* — if set, overrides all four above |
+| `VITE_API_GATEWAY_URL` | *(unset)* — if set, overrides all four above with a single origin (the ALB / CloudFront domain); the Ingress routes on the `/api/*` prefixes |
 
 > Vite inlines `VITE_*` variables into the bundle **at build time**. They are
 > public. Never put a secret in the frontend `.env`.

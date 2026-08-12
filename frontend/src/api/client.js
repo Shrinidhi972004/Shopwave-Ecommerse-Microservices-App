@@ -7,19 +7,22 @@ import axios from 'axios';
  * localhost, a staging ALB, or production CloudFront by rebuilding with a
  * different .env — no code change.
  *
- * If VITE_API_GATEWAY_URL is set, every service is addressed through a single
- * gateway with a path prefix instead. That is the shape this will take once
- * the services sit behind an ALB / API Gateway in AWS.
+ * If VITE_API_GATEWAY_URL is set, all four services are addressed through that
+ * one origin instead. No prefix is added here: every request path below
+ * already starts with /api/<service>, which is exactly what the ALB Ingress
+ * routes on (/api/auth, /api/products, /api/categories, /api/cart,
+ * /api/orders). Adding a second prefix would produce /products/api/products
+ * and miss every rule.
  */
 
 const gateway = import.meta.env.VITE_API_GATEWAY_URL;
 
 const BASE_URLS = gateway
   ? {
-      auth: `${gateway}/auth`,
-      product: `${gateway}/products`,
-      cart: `${gateway}/cart`,
-      order: `${gateway}/orders`,
+      auth: gateway,
+      product: gateway,
+      cart: gateway,
+      order: gateway,
     }
   : {
       auth: import.meta.env.VITE_AUTH_API_URL || 'http://localhost:4001',
